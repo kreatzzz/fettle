@@ -44,3 +44,6 @@ yarn-error.*
 .convex/
 .claude/
 .vercel/
+
+.vercel
+.env*
