@@ -14,6 +14,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ThemeProvider } from '@/design';
 import { BrandSplash } from '@/features/brand/BrandSplash';
+import { WebFrame } from '@/features/web/WebFrame';
 import { startSync } from '@/lib/sync';
 import { checkForUpdate, installUpdate } from '@/lib/updates';
 import { useApp, useHydrated } from '@/store/app-store';
@@ -52,24 +53,26 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <ThemeProvider>
-          <StatusBar style="auto" />
-          <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
-            <Stack.Protected guard={onboarded}>
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="profile" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-              <Stack.Screen name="coach" options={{ animation: 'slide_from_bottom', gestureEnabled: true, fullScreenGestureEnabled: true }} />
-              <Stack.Screen name="muscle/[id]" options={{ animation: 'slide_from_right' }} />
-              <Stack.Screen name="session" options={{ gestureEnabled: false, animation: 'slide_from_bottom' }} />
-              <Stack.Screen name="log-meal" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-            </Stack.Protected>
-            <Stack.Protected guard={!onboarded}>
-              <Stack.Screen name="onboarding" />
-            </Stack.Protected>
-            <Stack.Screen name="design" />
-          </Stack>
-          {showBrand ? <BrandSplash onDone={() => setShowBrand(false)} /> : null}
-        </ThemeProvider>
+        <WebFrame>
+          <ThemeProvider>
+            <StatusBar style="auto" />
+            <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
+              <Stack.Protected guard={onboarded}>
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="profile" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+                <Stack.Screen name="coach" options={{ animation: 'slide_from_bottom', gestureEnabled: true, fullScreenGestureEnabled: true }} />
+                <Stack.Screen name="muscle/[id]" options={{ animation: 'slide_from_right' }} />
+                <Stack.Screen name="session" options={{ gestureEnabled: false, animation: 'slide_from_bottom' }} />
+                <Stack.Screen name="log-meal" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+              </Stack.Protected>
+              <Stack.Protected guard={!onboarded}>
+                <Stack.Screen name="onboarding" />
+              </Stack.Protected>
+              <Stack.Screen name="design" />
+            </Stack>
+            {showBrand ? <BrandSplash onDone={() => setShowBrand(false)} /> : null}
+          </ThemeProvider>
+        </WebFrame>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
