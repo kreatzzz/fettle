@@ -15,7 +15,7 @@ import {
   type NativeSyntheticEvent,
   type TextInputProps,
 } from "react-native";
-import Animated, { Easing, FadeIn, useAnimatedStyle, useSharedValue, withSpring, withTiming, type SharedValue } from "react-native-reanimated";
+import Animated, { Easing, FadeIn, interpolateColor, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming, type SharedValue } from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
 import { Text } from "./components";
 import { useTheme } from "./theme";
@@ -42,31 +42,24 @@ export function BareField({
   ...rest
 }: TextInputProps & { value: string; onChangeText: (v: string) => void; /** Centre the text, for one-input screens. */ center?: boolean }) {
   const { colors } = useTheme();
-  const focus = useSharedValue(0);
-  const line = useAnimatedStyle(() => ({ transform: [{ scaleX: 0.15 + focus.value * 0.85 }], opacity: 0.35 + focus.value * 0.65 }));
   return (
-    <View style={{ gap: space[3] }}>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={colors.textTertiary}
-        onFocus={() => focus.set(withTiming(1, { duration: motion.base }))}
-        onBlur={() => focus.set(withTiming(0, { duration: motion.base }))}
-        selectionColor={colors.brand.ember}
-        style={{ fontFamily: fonts.display, fontSize: 36, lineHeight: 44, letterSpacing: -0.8, color: colors.text, paddingVertical: space[2], minWidth: 0, textAlign: center ? "center" : "left", ...webNoOutline }}
-        {...rest}
-      />
-      <View style={{ height: 3, borderRadius: 2, backgroundColor: colors.fill, overflow: "hidden" }}>
-        <Animated.View style={[{ height: 3, borderRadius: 2, backgroundColor: colors.brand.ember, transformOrigin: center ? "center" : "left" }, line]} />
-      </View>
-    </View>
+    <TextInput
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      placeholderTextColor={colors.textTertiary}
+      style={{ fontFamily: fonts.display, fontSize: 36, lineHeight: 44, letterSpacing: -0.8, color: colors.text, paddingVertical: space[2], minWidth: 0, textAlign: center ? "center" : "left", ...webNoOutline }}
+      {...rest}
+    />
   );
 }
 
 /* ----------------------------------------------------------- ChoiceTile */
 
-/** Large selectable tile. `compact` makes a square tile for grids (gear). */
+/**
+ * Large selectable tile. `compact` makes a square tile for grids (gear).
+ * Selecting springs the surface to a warm ember tint, fills the icon tile, and pops a check badge in.
+ */
 export function ChoiceTile({
   title,
   detail,
@@ -82,81 +75,92 @@ export function ChoiceTile({
   onPress: () => void;
   compact?: boolean;
 }) {
-  const { colors, elevation } = useTheme();
-  const scale = useSharedValue(1);
-  const pressStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  const iconColor = selected ? "#FFFFFF" : colors.text;
+  const { colors, elevation, scheme } = useTheme();
+  const press = useSharedValue(1);
+  const sel = useSharedValue(selected ? 1 : 0);
+  useEffect(() => {
+    sel.set(withSpring(selected ? 1 : 0, motion.spring));
+  }, [selected, sel]);
+
+  const tint = scheme === "dark" ? "#FF5A3624" : colors.brand.emberSoft;
+  const pressStyle = useAnimatedStyle(() => ({ transform: [{ scale: press.get() }] }));
+  const surface = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(sel.get(), [0, 1], [colors.surface, tint]),
+    borderColor: interpolateColor(sel.get(), [0, 1], ["#FF5A3600", colors.brand.ember]),
+  }));
+  const iconTile = useAnimatedStyle(() => ({ transform: [{ scale: 1 + 0.08 * sel.get() }] }));
+  const badge = useAnimatedStyle(() => ({ opacity: Math.min(1, sel.get() * 1.5), transform: [{ scale: 0.3 + 0.7 * sel.get() }] }));
+
   return (
     <Animated.View style={[compact ? { width: "31%" } : null, pressStyle]}>
       <Pressable
         accessibilityRole={compact ? "checkbox" : "radio"}
         accessibilityState={compact ? { checked: selected } : { selected }}
         accessibilityLabel={title}
-        onPressIn={() => scale.set(withSpring(0.96, motion.spring))}
-        onPressOut={() => scale.set(withSpring(1, motion.spring))}
+        onPressIn={() => press.set(withSpring(0.96, motion.spring))}
+        onPressOut={() => press.set(withSpring(1, motion.spring))}
         onPress={() => {
           tick();
           onPress();
         }}
-        style={[
-          {
-            borderRadius: radius.lg,
-            backgroundColor: colors.surface,
-            borderWidth: 2,
-            borderColor: selected ? colors.brand.ember : "transparent",
-            padding: compact ? space[4] : space[5],
-            gap: compact ? space[3] : space[4],
-            flexDirection: compact ? "column" : "row",
-            alignItems: compact ? "flex-start" : "center",
-            minHeight: compact ? 104 : 84,
-          },
-          elevation.card,
-        ]}
       >
-        {icon ? (
-          <View
-            style={{
-              width: compact ? 40 : 48,
-              height: compact ? 40 : 48,
-              borderRadius: radius.sm,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: selected ? colors.brand.ember : colors.fill,
-            }}
-          >
-            {icon(iconColor)}
-          </View>
-        ) : null}
-        <View style={{ flex: compact ? undefined : 1, gap: 2 }}>
-          <Text variant={compact ? "footnote" : "title3"} style={compact ? { fontFamily: fonts.semibold } : undefined} numberOfLines={2}>
-            {title}
-          </Text>
-          {detail && !compact ? (
-            <Text variant="subhead" tone="secondary">
-              {detail}
-            </Text>
+        <Animated.View
+          style={[
+            {
+              borderRadius: radius.lg,
+              borderWidth: 2,
+              padding: compact ? space[4] : space[5],
+              gap: compact ? space[3] : space[4],
+              flexDirection: compact ? "column" : "row",
+              alignItems: compact ? "flex-start" : "center",
+              minHeight: compact ? 104 : 84,
+            },
+            elevation.card,
+            surface,
+          ]}
+        >
+          {icon ? (
+            <Animated.View
+              style={[
+                { width: compact ? 40 : 48, height: compact ? 40 : 48, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: colors.separator },
+                iconTile,
+              ]}
+            >
+              {icon("#16140F")}
+            </Animated.View>
           ) : null}
-        </View>
-        {selected ? (
+          <View style={{ flex: compact ? undefined : 1, gap: 2 }}>
+            <Text variant={compact ? "footnote" : "title3"} style={compact ? { fontFamily: fonts.semibold } : undefined} numberOfLines={2}>
+              {title}
+            </Text>
+            {detail && !compact ? (
+              <Text variant="subhead" tone="secondary">
+                {detail}
+              </Text>
+            ) : null}
+          </View>
           <Animated.View
-            entering={FadeIn.duration(150)}
-            style={{
-              position: compact ? "absolute" : "relative",
-              top: compact ? space[3] : undefined,
-              right: compact ? space[3] : undefined,
-              width: 22,
-              height: 22,
-              borderRadius: 11,
-              backgroundColor: colors.brand.ember,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
+            pointerEvents="none"
+            style={[
+              {
+                position: compact ? "absolute" : "relative",
+                top: compact ? space[3] : undefined,
+                right: compact ? space[3] : undefined,
+                width: 22,
+                height: 22,
+                borderRadius: 11,
+                backgroundColor: colors.brand.ember,
+                alignItems: "center",
+                justifyContent: "center",
+              },
+              badge,
+            ]}
           >
             <Svg width={12} height={12} viewBox="0 0 12 12">
               <Path d="M2.5 6.2l2.3 2.3 4.7-5" stroke="#FFFFFF" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
             </Svg>
           </Animated.View>
-        ) : null}
+        </Animated.View>
       </Pressable>
     </Animated.View>
   );
@@ -324,47 +328,65 @@ function StepSegment({ filled, track, fill }: { filled: boolean; track: string; 
   );
 }
 
-/* ----------------------------------------------------------- WeekTiles */
+/* ----------------------------------------------------------- WeekChart */
 
-export type DayTile = { label: string; sets: number; ate: boolean; today: boolean };
+export type DayTile = { label: string; name: string; sets: number; workouts: number; ate: boolean; today: boolean };
+
+const BAR_H = 60;
+// ~20 sets reads as a full day; heavier days just reach the top.
+const FULL_DAY_SETS = 20;
 
 /**
- * The week as a row of mosaic tiles: each fills with ember by how much you
- * trained that day, with a green dot when you logged food.
+ * The last 7 days as quiet bars: height is the sets completed that day (the count
+ * sits above it), a rest day is a short dash, and today's weekday is inked in.
+ * Neutral on purpose; the header says what it counts. Bars grow in, staggered.
  */
-export function WeekTiles({ days }: { days: DayTile[] }) {
+export function WeekChart({ days, goal }: { days: DayTile[]; goal: number }) {
   const { colors } = useTheme();
-  // ~20 sets reads as a full day; heavier days just fill the tile.
-  const max = Math.max(20, ...days.map((d) => d.sets));
+  const workouts = days.reduce((n, d) => n + d.workouts, 0);
+  const sets = days.reduce((n, d) => n + d.sets, 0);
+  const max = Math.max(FULL_DAY_SETS, ...days.map((d) => d.sets));
   return (
-    <View style={{ flexDirection: "row", gap: 6 }}>
-      {days.map((d, i) => {
-        const level = d.sets === 0 ? 0 : 0.28 + 0.72 * Math.min(1, d.sets / max);
-        return (
+    <View style={{ gap: space[4] }}>
+      <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" }}>
+        <Text variant="subhead">
+          {workouts} of {goal} workouts
+        </Text>
+        <Text variant="footnote" tone="tertiary" style={{ fontVariant: ["tabular-nums"] }}>
+          {sets} sets
+        </Text>
+      </View>
+
+      <View style={{ flexDirection: "row", gap: 6 }} accessibilityRole="image" accessibilityLabel={`${workouts} workouts and ${sets} sets in the last 7 days`}>
+        {days.map((d, i) => (
           <View key={i} style={{ flex: 1, alignItems: "center", gap: space[2] }}>
-            <Animated.View
-              style={{
-                width: "100%",
-                aspectRatio: 0.8,
-                borderRadius: radius.sm,
-                backgroundColor: colors.fill,
-                borderWidth: d.today ? 2 : 0,
-                borderColor: colors.text,
-                overflow: "hidden",
-                justifyContent: "flex-end",
-              }}
-            >
-              {level ? <View style={{ height: `${level * 100}%`, backgroundColor: colors.brand.ember, opacity: 0.35 + level * 0.65 }} /> : null}
-              {d.ate ? (
-                <View style={{ position: "absolute", top: 6, right: 6, width: 6, height: 6, borderRadius: 3, backgroundColor: colors.category.nutrition }} />
-              ) : null}
-            </Animated.View>
-            <Text variant="caption" tone={d.today ? "primary" : "secondary"}>
-              {d.label}
+            <Text variant="caption" tone="tertiary" style={{ fontVariant: ["tabular-nums"], height: 14 }}>
+              {d.sets || ""}
             </Text>
+            <WeekBar level={Math.min(1, d.sets / max)} rest={d.sets === 0} today={d.today} index={i} />
+            <View
+              style={{ minWidth: 22, height: 22, paddingHorizontal: 4, borderRadius: 11, alignItems: "center", justifyContent: "center", backgroundColor: d.today ? colors.ink : "transparent" }}
+            >
+              <RNText style={[type.caption, { color: d.today ? colors.onInk : colors.textTertiary, fontFamily: d.today ? fonts.semibold : fonts.medium }]}>{d.label}</RNText>
+            </View>
           </View>
-        );
-      })}
+        ))}
+      </View>
+    </View>
+  );
+}
+
+/** One day's bar. Grows from the baseline with a spring, staggered by day. */
+function WeekBar({ level, rest, today, index }: { level: number; rest: boolean; today: boolean; index: number }) {
+  const { colors } = useTheme();
+  const h = useSharedValue(0);
+  useEffect(() => {
+    h.set(withDelay(index * 55, withSpring(level, { damping: 16, stiffness: 140 })));
+  }, [level, index, h]);
+  const fill = useAnimatedStyle(() => ({ height: Math.max(6, h.get() * BAR_H) }));
+  return (
+    <View style={{ width: "100%", height: BAR_H, borderRadius: radius.xs, backgroundColor: colors.fill, justifyContent: "flex-end", overflow: "hidden" }}>
+      {rest ? null : <Animated.View style={[{ width: "100%", borderRadius: radius.xs, backgroundColor: colors.ink, opacity: today ? 1 : 0.55 }, fill]} />}
     </View>
   );
 }
@@ -406,7 +428,6 @@ export function DemoBadge({ onLeave }: { onLeave: () => void }) {
  * the wheel.
  */
 export function IconCarousel({ step, icons }: { step: number; icons: ((color: string) => ReactNode)[] }) {
-  const { colors } = useTheme();
   const pos = useSharedValue(step);
   useEffect(() => {
     pos.value = withTiming(step, { duration: 520, easing: Easing.out(Easing.cubic) });
@@ -414,7 +435,7 @@ export function IconCarousel({ step, icons }: { step: number; icons: ((color: st
   return (
     <View style={{ height: 76, alignItems: "center", justifyContent: "center" }} accessibilityLabel={`Step ${step + 1} of ${icons.length}`}>
       {icons.map((icon, i) => (
-        <CarouselIcon key={i} index={i} pos={pos} active={i === step} done={i < step} icon={icon} ember={colors.brand.ember} fill={colors.fill} ink={colors.textSecondary} />
+        <CarouselIcon key={i} index={i} pos={pos} icon={icon} />
       ))}
     </View>
   );
@@ -423,25 +444,8 @@ export function IconCarousel({ step, icons }: { step: number; icons: ((color: st
 const ANGLE = 48; // degrees between neighbours on the wheel
 const RADIUS = 92; // px, wheel radius in screen space
 
-function CarouselIcon({
-  index,
-  pos,
-  active,
-  done,
-  icon,
-  ember,
-  fill,
-  ink,
-}: {
-  index: number;
-  pos: SharedValue<number>;
-  active: boolean;
-  done: boolean;
-  icon: (color: string) => ReactNode;
-  ember: string;
-  fill: string;
-  ink: string;
-}) {
+function CarouselIcon({ index, pos, icon }: { index: number; pos: SharedValue<number>; icon: (color: string) => ReactNode }) {
+  const { elevation } = useTheme();
   const style = useAnimatedStyle(() => {
     const d = index - pos.value;
     const a = (d * ANGLE * Math.PI) / 180;
@@ -460,20 +464,9 @@ function CarouselIcon({
   return (
     <Animated.View
       pointerEvents="none"
-      style={[
-        {
-          position: "absolute",
-          width: 64,
-          height: 64,
-          borderRadius: 20,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: active ? ember : fill,
-        },
-        style,
-      ]}
+      style={[{ position: "absolute", width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center", backgroundColor: "#FFFFFF" }, elevation.card, style]}
     >
-      {icon(active ? "#FFFFFF" : done ? ember : ink)}
+      {icon("#16140F")}
     </Animated.View>
   );
 }
@@ -502,10 +495,9 @@ export function MeasureField({
   maxLength?: number;
 }) {
   const { colors } = useTheme();
-  const line = error ? colors.status.critical : value ? colors.brand.ember : colors.fillStrong;
   return (
     <View style={{ alignItems: "center", gap: space[3] }}>
-      <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: 240, borderBottomWidth: 2, borderBottomColor: line, paddingBottom: space[2] }}>
+      <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "center", width: 240 }}>
         <TextInput
           value={value}
           onChangeText={onChangeText}
@@ -514,7 +506,6 @@ export function MeasureField({
           keyboardType="decimal-pad"
           maxLength={maxLength}
           accessibilityLabel={label}
-          selectionColor={colors.brand.ember}
           style={[
             { fontFamily: fonts.displayHeavy, fontSize: 52, height: 64, width: 170, textAlign: "right", color: colors.text, padding: 0, fontVariant: ["tabular-nums"] },
             webNoOutline,

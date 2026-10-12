@@ -1,6 +1,7 @@
-import type { ReactNode } from "react";
+import { Children, type ReactNode } from "react";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
 import { IconButton, Text } from "./components";
 import { useTheme } from "./theme";
@@ -49,7 +50,12 @@ export function Screen({
           </View>
           {right}
         </View>
-        {children}
+        {/* Cards ease in one after another the first time a screen opens. */}
+        {Children.toArray(children).map((child, i) => (
+          <Animated.View key={i} entering={FadeInDown.delay(Math.min(i, 6) * 45).duration(300)}>
+            {child}
+          </Animated.View>
+        ))}
       </ScrollView>
     </View>
   );

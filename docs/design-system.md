@@ -29,7 +29,7 @@ Code lives in `src/design/`: `tokens.ts` (values), `theme.tsx` (`ThemeProvider`,
 | text / secondary / tertiary | `#16140F` / `#6B675F` / `#A6A197` | `#F6F4F0` / `#A09C94` / `#5F5C57` |
 | ink / onInk | `#16140F` / `#FFF` | `#F6F4F0` / `#16140F` |
 
-**Brand:** ember `#FF5A36`, emberDeep `#E2401E`, emberSoft `#FFE4DB`, night `#0E0D10`, cream `#F4F2EE`.
+**Brand:** ember `#FF5A36`, emberDeep `#E2401E`, emberSoft `#FFE4DB`, amber `#F7B955` (logo mark), night `#0E0D10`, cream `#F4F2EE`.
 
 **Categories:**
 
@@ -47,13 +47,12 @@ Code lives in `src/design/`: `tokens.ts` (values), `theme.tsx` (`ThemeProvider`,
 | Part | Color |
 |---|---|
 | background | `#0E0D10` |
-| resting muscle | `#38373D` |
 | separation lines | `#5A5960` (the silhouette shows through the gaps) |
 | head | `#CFCDD3` |
 | hands, feet, knees | `#2E2D33` |
 | selected muscle | white outline |
 
-**Fatigue ramp:** Fresh is the resting muscle color, then Light amber `#F7B955`, Worked ember `#FF6A3D` and Heavy crimson `#E5243F`. `FatigueLegend` always appears with the figure.
+**Muscle status (traffic light):** every muscle is green, yellow or red, never gray. Ready to train green `#3FCF6E` (fatigue levels 0 and 1), Recovering yellow `#F5C842` (level 2), Needs rest red `#EF4444` (level 3). `FatigueLegend` always appears with the figure and shows those three.
 
 **Status:** good `#2FA84F`, warning `#F2A516`, critical `#E5243F`. Always shown with a word.
 
@@ -89,20 +88,20 @@ Never use all caps.
 - **Avatar:** an ember circle with the user's initial. It sits top right on every tab and opens Profile.
 - **IconButton, Stepper:** a round header button, and a − value + control.
 - **Screen:** a large title with an optional right accessory. **SheetScreen:** a title, a close button and a pinned footer, used for modals (Profile, Log meal, Workout). **SectionLabel:** a title3 heading between cards.
-- **TabBar:** a floating bar with Today, Train, Eat and Gear around the iris voice button. The active tab gets an ember dot.
+- **TabBar:** a floating bar with Today, Train, Eat and Gear around the iris voice button. One solid ink capsule slides (spring) under the selected tab; its outline icon cross-fades to the filled one and the icon and label turn white (onInk).
 - **MuscleMap** (`src/features/body`): the anatomical front and back figure, with every muscle its own region. Tapping a muscle opens `/muscle/[id]`. **BodyCard** is the map on the night stage with a summary line and the legend.
 
 ## Signature components
 
 These live in `src/design/signature.tsx` and give Fettle its own feel. Each one gives a light haptic tick on native.
 
-- **BareField:** a big, boxless text input (Bricolage 36) for one-question screens. Its only chrome is an ember underline that grows while focused.
-- **ChoiceTile:** a large selectable tile with an icon square that turns ember when chosen and a check that springs in. `compact` makes a square tile for the gear grid. Tiles fade in one after another.
+- **BareField:** a big, boxless text input (Bricolage 36) for one-question screens. No underline or custom caret: the system caret and selection colour are used.
+- **ChoiceTile:** a large selectable tile. Choosing it springs the surface to an ember tint with an ember border, enlarges the icon, and pops a check badge in. The icon sits in a white circle with a black glyph, never orange. `compact` makes a square tile for the gear grid. Tiles fade in one after another.
 - **RulerPicker:** a horizontal ruler you scrub, with the value huge above a fixed ember needle. Used for body weight and session length.
 - **BigStepper:** a big number with round − and + buttons, for targets.
 - **StepBar:** segmented progress; each segment fills smoothly.
-- **WeekTiles:** the last 7 days as mosaic tiles. Ember fills a tile by how much you trained that day, a green dot means food was logged, and today is outlined.
-- **IconCarousel:** the step indicator, a 3D wheel of step icons. The previous step sits on the left, the current one is large and ember in the centre, and the next is on the right. Moving between steps turns the wheel.
+- **WeekChart:** the last 7 days as bars. Bar height is the sets completed that day (the count sits above it), a rest day is a small dash, a green dot underneath means food was logged, and today's weekday is an ember pill (dashed outline if you haven't trained yet). The header says "N of goal workouts" and the total sets, and a two-item legend explains the marks. Bars grow in with a staggered spring.
+- **IconCarousel:** the step indicator, a 3D wheel of step icons. The previous step sits on the left, the current one is large in the centre, and the next is on the right. Each icon is a white circle with a black glyph. Moving between steps turns the wheel.
 - **MeasureField, ActivityBars:** a big centred number on an underline with its unit, with an inline red message when it's outside the allowed range; and a row of rising bars where the chosen one grows tall and ember.
 - **DemoBadge:** a night pill reading "Demo mode · Leave".
 - **VoiceOrb** (`src/features/voice`): three soft colour blobs (iris, ember, blue) drifting inside a sphere. Its energy follows mic volume while listening.
@@ -111,7 +110,7 @@ These live in `src/design/signature.tsx` and give Fettle its own feel. Each one 
 
 - **Welcome:** a night screen with a muscle figure that cycles through sessions. It offers Create an account, Try the demo, and Sign in.
 - **Sign up, then onboarding:** one question per screen (`QuestionFrame`). Each screen has back on the left (and Skip or Sign in on the right), a small centred title and subtitle, and the `IconCarousel` of step icons. One big answer is centred in the empty middle, and a pill Continue stays grey until the answer is valid, then turns ember. The steps are: email, password, name, goal, experience, daily activity (`ActivityBars`), measurements (`MeasureField` for kg and cm, skippable), workout details (equipment chips and workouts per week), gear grid, session length (ruler), targets (suggested from weight and activity), and a programme reveal such as "Intermediate Upper / Lower".
-- **Voice coach:** a full-screen night overlay over any tab, opened from the mic button. It starts listening right away. Your words appear large, the coach's reply fades in below them, and suggestions and "Type instead" sit at the bottom. Where speech isn't available (Expo Go), it opens straight to typing.
+- **Voice coach:** a full-screen night screen (route `/coach`, so the back gesture and back button close it), opened from the mic button. It starts listening right away. Your words appear large, the coach's reply fades in below them, and suggestions and "Type instead" sit at the bottom. Where speech isn't available (Expo Go), it opens straight to typing.
 
 ## Input limits
 

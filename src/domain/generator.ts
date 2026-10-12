@@ -10,13 +10,15 @@ import { mulberry32 } from "./random";
 import type { Experience, Goal, PrefStatus } from "./types";
 
 export type Focus = "auto" | "upper" | "lower" | "full";
+/** What the session is built for. "fat-loss" is a coach-requested circuit: full body, more reps, short rests. */
+export type WorkoutGoal = Goal | "fat-loss";
 
 export type DraftItem = { exerciseId: string; sets: number; reps: number; restSeconds: number; weightKg: number; reason: string };
 export type Draft = { name: string; focus: Exclude<Focus, "auto">; items: DraftItem[]; skipped: string[] };
 
 type Input = {
   equipment: readonly string[];
-  goal: Goal;
+  goal: WorkoutGoal;
   experience: Experience;
   sets: LoggedSet[];
   prefs: Record<string, PrefStatus>;
@@ -32,10 +34,11 @@ const SLOTS: Record<Exclude<Focus, "auto">, MovementPattern[]> = {
   lower: ["squat", "hinge", "lunge", "isolation", "core", "isolation", "squat", "core"],
 };
 
-const DOSE: Record<Goal, { sets: number; reps: number; rest: number }> = {
+const DOSE: Record<WorkoutGoal, { sets: number; reps: number; rest: number }> = {
   strength: { sets: 4, reps: 5, rest: 150 },
   muscle: { sets: 3, reps: 10, rest: 90 },
   general: { sets: 3, reps: 12, rest: 60 },
+  "fat-loss": { sets: 3, reps: 15, rest: 30 },
 };
 
 const readiness = (s: MuscleState) => Math.max(0, Math.min(1, 1 - s.ratio));
@@ -73,7 +76,7 @@ function bodyweightDose(e: Exercise, item: DraftItem): DraftItem {
 
 export function generateWorkout(input: Input): Draft {
   const load = muscleLoad(input.sets, input.now);
-  const focus = input.focus === "auto" ? pickFocus(load) : input.focus;
+  const focus = input.focus === "auto" ? (input.goal === "fat-loss" ? "full" : pickFocus(load)) : input.focus;
   const slotCount = Math.max(3, Math.min(8, Math.round(input.durationMin / 8)));
   const slots = SLOTS[focus].slice(0, slotCount);
   const rand = mulberry32(input.seed);
@@ -123,7 +126,8 @@ export function generateWorkout(input: Input): Draft {
   }
 
   const names = { full: "Full body", upper: "Upper body", lower: "Lower body" } as const;
-  return { name: names[focus], focus, items, skipped };
+  const name = input.goal === "fat-loss" ? (focus === "full" ? "Fat-loss circuit" : `${names[focus]} fat-loss`) : names[focus];
+  return { name, focus, items, skipped };
 }
 
 /** Up to `limit` swaps: same pattern, shares the first primary muscle, available, not blocked. */

@@ -53,7 +53,8 @@ export default function TrainScreen() {
 
   return (
     <Screen title="Train" right={profile ? <Avatar name={profile.name} onPress={() => router.push('/profile')} /> : null}>
-      <SegmentedControl value={plan.focus} onChange={(focus) => setPlan({ focus })} options={FOCI} />
+      <BodyCard />
+      <SegmentedControl value={plan.focus} onChange={(focus) => setPlan({ focus, goal: undefined })} options={FOCI} />
       <View style={{ flexDirection: 'row', gap: space[3] }}>
         {[30, 45, 60, 75].map((m) => (
           <Chip key={m} label={`${m} min`} selected={plan.durationMin === m} onPress={() => setPlan({ durationMin: m })} />
@@ -102,8 +103,6 @@ export default function TrainScreen() {
           icon={<Ionicons name="play" size={16} color="#FFFFFF" />}
         />
       </Card>
-
-      <BodyCard />
 
       <Card title="Sets per day" category="training" accessory={<Text variant="footnote" tone="secondary">7 days</Text>}>
         <BarChart values={weekSets} labels={weekLabels} color={colors.category.training} highlightIndex={6} />

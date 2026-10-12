@@ -12,12 +12,13 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { demoAccount } from "@/domain/demo";
 import { presetEquipment, type EquipmentId, type Place } from "@/domain/equipment";
-import type { DraftItem, Focus } from "@/domain/generator";
+import type { DraftItem, Focus, WorkoutGoal } from "@/domain/generator";
 import { uid } from "@/domain/random";
 import { tick } from "@/lib/clock";
 import type { Meal, PrefStatus, Profile, Session, SetEntry } from "@/domain/types";
 
-export type PlanOptions = { focus: Focus; durationMin: number; seed: number; swaps: Record<number, string> };
+/** `goal` overrides the profile goal for today's draft (set by the coach); unset means use the profile goal. */
+export type PlanOptions = { focus: Focus; goal?: WorkoutGoal; durationMin: number; seed: number; swaps: Record<number, string> };
 
 export type AppData = {
   onboarded: boolean;
@@ -34,6 +35,8 @@ export type AppData = {
 type Device = { deviceId: string; savedAt: number };
 
 type Actions = {
+  /** Replace everything with the sample user (Sam) and two months of history. */
+  loadSampleData: () => void;
   completeOnboarding: (profile: Profile, place: Omit<Place, "id">) => void;
   updateProfile: (patch: Partial<Profile>) => void;
   addMeal: (meal: Omit<Meal, "id" | "at"> & { at?: string }) => void;
@@ -74,6 +77,11 @@ export const useApp = create<AppData & Device & Actions>()(
       ...demoAccount(),
       deviceId: uid(),
       savedAt: 0,
+
+      loadSampleData: () => {
+        tick();
+        set({ ...demoAccount() });
+      },
 
       completeOnboarding: (profile, place) => {
         const id = uid();
@@ -179,13 +187,14 @@ export const useApp = create<AppData & Device & Actions>()(
     }),
     {
       name: "fettle-v1",
-      version: 3,
+      version: 5,
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (s): AppData & Device => ({ ...pickData(s), deviceId: s.deviceId, savedAt: s.savedAt }),
       // v1/v2 had local accounts: keep the data of the signed-in one, drop accounts and the vault.
+      // v4 refreshed the sample history: if you're still on Sam's untouched profile, load the new data.
       migrate: (persisted) => {
         const { account: _account, vault: _vault, ...data } = persisted as AppData & { account?: unknown; vault?: unknown };
-        return data.onboarded ? data : { ...data, ...demoAccount() };
+        return !data.onboarded || data.profile?.name === "Sam" ? { ...data, ...demoAccount() } : data;
       },
     },
   ),

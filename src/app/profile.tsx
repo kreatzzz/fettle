@@ -11,10 +11,12 @@ import { useApp } from '@/store/app-store';
 
 export default function ProfileScreen() {
   const profile = useApp((s) => s.profile);
-  const mealCount = useApp((s) => s.meals.length);
+  // Only meals that have happened; sample data also holds the days ahead.
+  const mealCount = useApp((s) => s.meals.filter((m) => Date.parse(m.at) <= Date.now()).length);
   const update = useApp((s) => s.updateProfile);
   const setPlan = useApp((s) => s.setPlan);
   const reset = useApp((s) => s.reset);
+  const loadSampleData = useApp((s) => s.loadSampleData);
   const { finished, streak } = useTraining();
   const [confirmReset, setConfirmReset] = useState(false);
   const [release, setRelease] = useState<Update | null>(null);
@@ -145,6 +147,7 @@ export default function ProfileScreen() {
         <Text variant="footnote" tone="secondary">
           Stored on this phone and backed up online. There are no accounts.
         </Text>
+        <Button variant="secondary" label="Load sample data" onPress={loadSampleData} />
         <Button
           variant="destructive"
           label={confirmReset ? 'Tap again to erase your data' : 'Erase my data'}

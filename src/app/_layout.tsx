@@ -58,6 +58,7 @@ export default function RootLayout() {
             <Stack.Protected guard={onboarded}>
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="profile" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+              <Stack.Screen name="coach" options={{ animation: 'slide_from_bottom', gestureEnabled: true, fullScreenGestureEnabled: true }} />
               <Stack.Screen name="muscle/[id]" options={{ animation: 'slide_from_right' }} />
               <Stack.Screen name="session" options={{ gestureEnabled: false, animation: 'slide_from_bottom' }} />
               <Stack.Screen name="log-meal" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />

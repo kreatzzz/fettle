@@ -1,50 +1,50 @@
 /**
- * Full-screen voice coach, opened from the mic in the tab bar. Starts
+ * Full-screen voice coach, a normal route (/coach) opened from the mic in the tab bar,
+ * so the back gesture and the hardware back button close it like any screen. Starts
  * listening right away where speech is available; otherwise (Expo Go) it opens
  * straight to typing. Requests run through runCoachCommand.
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, Text as RNText, TextInput, View } from 'react-native';
-import Animated, { FadeIn, FadeInDown, FadeOut } from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { create } from 'zustand';
 
 import { fonts, layout, radius, space, type, useTheme } from '@/design';
+import { EXERCISE_BY_ID } from '@/domain/exercises';
+import type { Draft } from '@/domain/generator';
 import { COACH_SUGGESTIONS, askCoach } from '@/lib/coach-commands';
 import { useDraft } from '@/lib/derive';
 import { useVoice } from '@/lib/voice';
+import { useActiveSession, useApp } from '@/store/app-store';
 import { VoiceOrb } from './VoiceOrb';
 
-export const useVoiceUI = create<{ open: boolean; show: () => void; hide: () => void }>((set) => ({
-  open: false,
-  show: () => set({ open: true }),
-  hide: () => set({ open: false }),
-}));
-
-export function VoiceOverlay() {
-  const open = useVoiceUI((s) => s.open);
-  return open ? <Overlay /> : null;
-}
-
-function Overlay() {
+export function CoachScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const hide = useVoiceUI((s) => s.hide);
+  const hide = () => (router.canGoBack() ? router.back() : router.replace('/'));
   const draft = useDraft();
+  const plan = useApp((s) => s.plan);
+  const active = useActiveSession();
+  const startSession = useApp((s) => s.startSession);
   const [heard, setHeard] = useState('');
   const [reply, setReply] = useState('');
   const [text, setText] = useState('');
 
   const [thinking, setThinking] = useState(false);
+  // Whether the last answer changed today's plan; only then do we offer the workout card.
+  const [changed, setChanged] = useState(false);
 
   const handle = useCallback((input: string) => {
     setHeard(input);
     setReply('');
+    setChanged(false);
     setThinking(true);
     askCoach(input).then((answer) => {
-      setReply(answer);
+      setReply(answer.reply);
+      setChanged(answer.changed);
       setThinking(false);
       if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     });
@@ -75,6 +75,12 @@ function Overlay() {
         : 'Tap the orb and talk';
   const shown = listening ? voice.partial : heard;
 
+  // Start the new workout (or resume the one in progress) and leave the coach.
+  const openWorkout = () => {
+    if (!active && draft) startSession(draft.name, draft.items);
+    router.replace('/session');
+  };
+
   const send = () => {
     if (!text.trim()) return;
     handle(text.trim());
@@ -82,11 +88,7 @@ function Overlay() {
   };
 
   return (
-    <Animated.View
-      entering={FadeIn.duration(220)}
-      exiting={FadeOut.duration(180)}
-      style={{ position: 'absolute', inset: 0, backgroundColor: colors.brand.night, paddingTop: insets.top + space[4], paddingBottom: insets.bottom + space[5] }}
-    >
+    <View style={{ flex: 1, backgroundColor: colors.brand.night, paddingTop: insets.top + space[4], paddingBottom: insets.bottom + space[5] }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: layout.gutter }}>
         <RNText style={[type.headline, { color: colors.stage.textSecondary, flex: 1 }]}>Coach</RNText>
         <Pressable accessibilityRole="button" accessibilityLabel="Close coach" onPress={hide} hitSlop={10} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#FFFFFF14', alignItems: 'center', justifyContent: 'center' }}>
@@ -105,14 +107,7 @@ function Overlay() {
         {reply && !listening ? (
           <Animated.View key={reply} entering={FadeInDown.delay(120).duration(300)} style={{ gap: space[3] }}>
             <RNText style={[type.callout, { color: colors.stage.textSecondary, fontSize: 17, lineHeight: 24 }]}>{reply}</RNText>
-            {draft ? (
-              <View style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: space[2], paddingHorizontal: space[4], paddingVertical: space[2], borderRadius: radius.pill, backgroundColor: '#FFFFFF12' }}>
-                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.brand.ember }} />
-                <RNText style={[type.footnote, { color: colors.stage.text }]}>
-                  {draft.name} · {draft.items.length} exercises
-                </RNText>
-              </View>
-            ) : null}
+            {changed && draft ? <WorkoutCard draft={draft} minutes={plan.durationMin} resuming={!!active} onOpen={openWorkout} /> : null}
           </Animated.View>
         ) : null}
       </View>
@@ -165,6 +160,54 @@ function Overlay() {
           </Pressable>
         )}
       </View>
+    </View>
+  );
+}
+
+const FOCUS_LABEL = { full: 'Full body', upper: 'Upper body', lower: 'Lower body' } as const;
+
+/** The workout the coach just built, as a tappable card: tags for what it is, a tap to start it. */
+function WorkoutCard({ draft, minutes, resuming, onOpen }: { draft: Draft; minutes: number; resuming: boolean; onOpen: () => void }) {
+  const { colors } = useTheme();
+  const names = draft.items.map((it) => EXERCISE_BY_ID.get(it.exerciseId)?.name).filter(Boolean) as string[];
+  const preview = names.slice(0, 3).join(' · ') + (names.length > 3 ? ` +${names.length - 3}` : '');
+  const tags = [`${draft.items.length} exercises`, `${minutes} min`, FOCUS_LABEL[draft.focus]];
+  return (
+    <Animated.View entering={FadeInDown.delay(250).springify().damping(18)}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={resuming ? `Resume your workout in progress` : `Start ${draft.name}`}
+        onPress={onOpen}
+        style={({ pressed }) => ({
+          gap: space[3],
+          padding: space[5],
+          borderRadius: radius.lg,
+          backgroundColor: pressed ? '#FFFFFF24' : '#FFFFFF14',
+          transform: [{ scale: pressed ? 0.98 : 1 }],
+        })}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[2] }}>
+          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.brand.ember }} />
+          <RNText style={[type.footnote, { color: colors.stage.textSecondary, flex: 1 }]}>{resuming ? 'Workout in progress' : 'New workout'}</RNText>
+        </View>
+        <RNText style={[type.title3, { color: colors.stage.text }]}>{draft.name}</RNText>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space[2] }}>
+          {tags.map((t) => (
+            <View key={t} style={{ paddingHorizontal: space[3], height: 26, justifyContent: 'center', borderRadius: radius.pill, backgroundColor: '#FFFFFF14' }}>
+              <RNText style={[type.caption, { color: colors.stage.text }]}>{t}</RNText>
+            </View>
+          ))}
+        </View>
+        {preview ? (
+          <RNText numberOfLines={1} style={[type.footnote, { color: colors.stage.textSecondary }]}>
+            {preview}
+          </RNText>
+        ) : null}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[1], marginTop: space[1] }}>
+          <RNText style={[type.subhead, { color: colors.brand.ember, fontFamily: fonts.semibold }]}>{resuming ? 'Resume workout' : 'Start workout'}</RNText>
+          <Ionicons name="arrow-forward" size={16} color={colors.brand.ember} />
+        </View>
+      </Pressable>
     </Animated.View>
   );
 }

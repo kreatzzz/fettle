@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import { Text as RNText, View } from 'react-native';
 
 import { FatigueLegend, fonts, radius, space, type, useTheme } from '@/design';
-import { MUSCLES, type MuscleId } from '@/domain/muscles';
 import { useFatigue } from '@/lib/derive';
 import { MuscleMap } from './MuscleMap';
 
@@ -10,10 +9,11 @@ import { MuscleMap } from './MuscleMap';
 export function BodyCard({ height = 330, title = 'Muscle map' }: { height?: number; title?: string }) {
   const { colors } = useTheme();
   const { load, levels } = useFatigue();
-  const worked = (Object.keys(load) as MuscleId[]).filter((m) => load[m].level > 0).sort((a, b) => load[b].ratio - load[a].ratio);
-  const summary = worked.length
-    ? `${worked.slice(0, 2).map((m) => MUSCLES[m].label).join(' and ')} ${worked.length > 2 ? `+${worked.length - 2} more ` : ''}still recovering`
-    : 'Everything is fresh';
+  const statuses = Object.values(load).map((s) => s.level);
+  const needRest = statuses.filter((l) => l === 3).length;
+  const recovering = statuses.filter((l) => l === 2).length;
+  const ready = statuses.length - needRest - recovering;
+  const summary = `${needRest} need rest · ${recovering} recovering · ${ready} ready`;
 
   return (
     <View style={{ backgroundColor: colors.stage.background, borderRadius: radius.lg, padding: space[5], gap: space[5], overflow: 'hidden' }}>

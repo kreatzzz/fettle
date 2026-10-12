@@ -42,7 +42,7 @@ export function useDraft(): Draft | null {
     if (!place || !profile) return null;
     const draft = generateWorkout({
       equipment: place.equipment,
-      goal: profile.goal,
+      goal: plan.goal ?? profile.goal,
       experience: profile.experience,
       sets,
       prefs,
@@ -75,7 +75,7 @@ export function useNutrition() {
   const now = useNow();
   return useMemo(() => {
     const today = startOfDay(now);
-    const todays = meals.filter((m) => Date.parse(m.at) >= today).sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+    const todays = meals.filter((m) => Date.parse(m.at) >= today && Date.parse(m.at) < today + DAY).sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
     const week = Array.from({ length: 7 }, (_, i) => {
       const from = today - (6 - i) * DAY;
       return meals.filter((m) => {
@@ -144,12 +144,13 @@ export function useWeekTiles() {
         const t = Date.parse(iso);
         return t >= from && t < from + DAY;
       };
-      const sets = sessions
-        .filter((s) => s.finishedAt && inDay(s.finishedAt))
-        .reduce((n, s) => n + s.exercises.reduce((k, e) => k + e.sets.filter((x) => x.done).length, 0), 0);
+      const finished = sessions.filter((s) => s.finishedAt && inDay(s.finishedAt));
+      const sets = finished.reduce((n, s) => n + s.exercises.reduce((k, e) => k + e.sets.filter((x) => x.done).length, 0), 0);
       return {
         label: new Date(from).toLocaleDateString(undefined, { weekday: "narrow" }),
+        name: new Date(from).toLocaleDateString(undefined, { weekday: "long" }),
         sets,
+        workouts: finished.length,
         ate: meals.some((m) => inDay(m.at)),
         today: i === 6,
       };

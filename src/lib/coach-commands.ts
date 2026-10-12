@@ -7,20 +7,23 @@ import { api } from '../../convex/_generated/api';
 import { convex } from '@/lib/convex';
 import { useApp } from '@/store/app-store';
 
-export const COACH_SUGGESTIONS = ['Upper body today', 'Make it 30 minutes', 'Lower body today', 'Shuffle my exercises'];
+export const COACH_SUGGESTIONS = ['I want to lose weight', 'Upper body today', 'Make it 30 minutes', 'Lower body today', 'Shuffle my exercises'];
 
 export function runCoachCommand(input: string): string {
   const { plan, setPlan, regenerate } = useApp.getState();
   const q = input.toLowerCase();
   const done: string[] = [];
-  if (/upper|arm|chest|shoulder|back day/.test(q)) {
-    setPlan({ focus: 'upper' });
+  if (/lose weight|weight loss|fat loss|burn fat|slim|cut/.test(q)) {
+    setPlan({ goal: 'fat-loss', focus: 'full' });
+    done.push('Built a fat-loss circuit: full body, more reps, short rests. Food matters most for weight loss, so keep logging meals.');
+  } else if (/upper|arm|chest|shoulder|back day/.test(q)) {
+    setPlan({ focus: 'upper', goal: undefined });
     done.push('Switched today to upper body.');
   } else if (/lower|leg|glute/.test(q)) {
-    setPlan({ focus: 'lower' });
+    setPlan({ focus: 'lower', goal: undefined });
     done.push('Switched today to lower body.');
   } else if (/full/.test(q)) {
-    setPlan({ focus: 'full' });
+    setPlan({ focus: 'full', goal: undefined });
     done.push('Full body it is.');
   }
   const mins = q.match(/(\d{2,3})\s*(min|m\b)/);
@@ -43,9 +46,13 @@ export function runCoachCommand(input: string): string {
   return done.join(' ') || 'I can change today’s focus, its length, or shuffle the exercises. Try “upper body, 30 minutes”.';
 }
 
+export type CoachAnswer = { reply: string; /** True when the answer changed today's plan, so the UI can offer the new workout. */ changed: boolean };
+
 /** Ask the AI coach, applying only the validated edits it returns. Falls back to the local parser. */
-export async function askCoach(input: string): Promise<string> {
-  if (!convex) return runCoachCommand(input);
+export async function askCoach(input: string): Promise<CoachAnswer> {
+  const before = JSON.stringify(useApp.getState().plan);
+  const answer = async (reply: string): Promise<CoachAnswer> => ({ reply, changed: JSON.stringify(useApp.getState().plan) !== before });
+  if (!convex) return answer(runCoachCommand(input));
   const { plan, setPlan, regenerate, deviceId, profile, places, activePlaceId } = useApp.getState();
   try {
     const res = await convex.action(api.coach.reply, {
@@ -54,15 +61,17 @@ export async function askCoach(input: string): Promise<string> {
       plan: {
         focus: plan.focus,
         durationMin: plan.durationMin,
-        goal: profile?.goal,
+        goal: plan.goal ?? profile?.goal,
         place: places.find((p) => p.id === activePlaceId)?.name,
       },
     });
-    if (res.focus) setPlan({ focus: res.focus });
+    // Picking a focus without a goal drops any earlier fat-loss goal.
+    if (res.goal) setPlan({ goal: res.goal, ...(res.focus ? { focus: res.focus } : {}) });
+    else if (res.focus) setPlan({ focus: res.focus, goal: undefined });
     if (res.durationMin) setPlan({ durationMin: res.durationMin });
     if (res.shuffle) regenerate();
-    return res.reply;
+    return answer(res.reply);
   } catch {
-    return runCoachCommand(input);
+    return answer(runCoachCommand(input));
   }
 }

@@ -60,6 +60,7 @@ const brand = {
   ember: "#FF5A36",
   emberDeep: "#E2401E",
   emberSoft: "#FFE4DB",
+  amber: "#F7B955", // middle bar of the logo mark
   night: "#0E0D10", // splash, onboarding hero, body map stage
   cream: "#F4F2EE",
 } as const;
@@ -80,16 +81,14 @@ const macro = {
 } as const;
 
 /**
- * Muscle fatigue, 3 steps: light, worked, heavy. The map always sits on the
- * night stage (both modes), so one ramp works everywhere: amber to ember to crimson,
- * each step brighter or hotter against the charcoal resting muscle.
+ * Muscle status traffic light, indexed by fatigue level 0..3. Levels 0 and 1 are
+ * ready (green), 2 is recovering (yellow), 3 needs rest (red). Always on the night stage.
  */
-const fatigue = ["#F7B955", "#FF6A3D", "#E5243F"] as const;
+const fatigue = ["#3FCF6E", "#3FCF6E", "#F5C842", "#EF4444"] as const;
 
 /** The night "stage" the anatomical figure is drawn on. */
 const stage = {
   background: "#0E0D10",
-  muscle: "#38373D", // resting / fresh muscle
   muscleLine: "#0E0D10", // gaps between muscle heads
   skin: "#CFCDD3", // head
   joint: "#2E2D33", // hands, feet, knees: body, but not trainable

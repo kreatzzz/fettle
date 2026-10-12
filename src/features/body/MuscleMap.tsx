@@ -91,10 +91,7 @@ function Figure({
 }: Omit<Props, "height" | "side"> & { regions: ArtRegion[]; outline: string; viewBox: string; width: number; height: number }) {
   const { colors } = useTheme();
   const { stage, fatigue } = colors;
-  const fillFor = (m: MuscleId) => {
-    const level = levels[m] ?? 0;
-    return level === 0 ? stage.muscle : fatigue[level - 1];
-  };
+  const fillFor = (m: MuscleId) => fatigue[levels[m] ?? 0];
   const selectedRegions = selected ? regions.filter((r) => SLUG_TO_MUSCLE[r.slug] === selected) : [];
 
   return (

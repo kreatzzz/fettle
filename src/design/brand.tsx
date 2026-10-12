@@ -39,7 +39,7 @@ export function Mark({ size = 40, tone }: { size?: number; tone?: "light" | "dar
   return (
     <View style={{ width: size, height: size }} accessibilityLabel={`${BRAND_NAME} logo`}>
       {TILES.map((tile, i) => (
-        <View key={i} style={tileStyle(tile, unit, onDark ? colors.brand.cream : colors.brand.night, colors.brand.ember, colors.fatigue[0])} />
+        <View key={i} style={tileStyle(tile, unit, onDark ? colors.brand.cream : colors.brand.night, colors.brand.ember, colors.brand.amber)} />
       ))}
     </View>
   );
@@ -55,7 +55,7 @@ export function AnimatedMark({ size = 96, onDone }: { size?: number; onDone?: ()
         <AnimatedTile
           key={i}
           index={i}
-          style={tileStyle(tile, unit, colors.brand.cream, colors.brand.ember, colors.fatigue[0])}
+          style={tileStyle(tile, unit, colors.brand.cream, colors.brand.ember, colors.brand.amber)}
           onDone={i === TILES.length - 1 ? onDone : undefined}
         />
       ))}

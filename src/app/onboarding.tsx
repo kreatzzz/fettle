@@ -94,6 +94,7 @@ export default function Onboarding() {
   const { colors } = useTheme();
   const completeOnboarding = useApp((s) => s.completeOnboarding);
   const setPlan = useApp((s) => s.setPlan);
+  const loadSampleData = useApp((s) => s.loadSampleData);
 
   const [i, setI] = useState(0);
   const [dir, setDir] = useState<1 | -1>(1);
@@ -158,6 +159,8 @@ export default function Onboarding() {
     icons: STEPS.map((x) => x.icon),
     direction: dir,
     onBack: i > 0 ? () => go(i - 1) : undefined,
+    // First screen only: skip setup and use the sample user (Sam) with ready-made history.
+    right: i === 0 ? { label: 'Use sample data', onPress: loadSampleData } : undefined,
   } as const;
 
   switch (step.key) {

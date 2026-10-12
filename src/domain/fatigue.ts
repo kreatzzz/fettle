@@ -11,7 +11,7 @@ import { MUSCLES, MUSCLE_IDS, type MuscleId } from "./muscles";
 import type { Session } from "./types";
 
 export type FatigueLevel = 0 | 1 | 2 | 3;
-export const LEVEL_LABELS = ["Fresh", "Light", "Worked", "Heavy"] as const;
+export const LEVEL_LABELS = ["Ready", "Ready", "Recovering", "Needs rest"] as const;
 
 export type MuscleState = {
   ratio: number;

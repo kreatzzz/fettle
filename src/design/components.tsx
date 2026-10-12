@@ -3,7 +3,7 @@
  * Depends only on react-native and react-native-svg.
  */
 import { useEffect, useState, type ReactNode } from "react";
-import Animated, { Easing, useAnimatedProps, useSharedValue, withDelay, withTiming } from "react-native-reanimated";
+import Animated, { Easing, interpolateColor, useAnimatedProps, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming } from "react-native-reanimated";
 import {
   Pressable,
   Text as RNText,
@@ -46,7 +46,6 @@ export function Card({
   style,
   onPress,
   title,
-  category,
   accessory,
 }: {
   children: ReactNode;
@@ -54,6 +53,7 @@ export function Card({
   onPress?: () => void;
   /** Optional header. Category tints the title, like Health's summary cards. */
   title?: string;
+  /** Kept for call sites; headers no longer draw a coloured dot. */
   category?: CategoryKey;
   accessory?: ReactNode;
 }) {
@@ -62,7 +62,6 @@ export function Card({
     <>
       {title ? (
         <View style={{ flexDirection: "row", alignItems: "center", marginBottom: space[4], gap: space[3] }}>
-          {category ? <Dot color={colors.category[category]} /> : null}
           <Text variant="title3" style={{ flex: 1 }}>
             {title}
           </Text>
@@ -209,7 +208,7 @@ export function StatTile({
 
 /* ---------------------------------------------------------------- Rings */
 
-export type RingDatum = { key: CategoryKey; label: string; progress: number };
+export type RingDatum = { key: CategoryKey; label: string; progress: number; /** Overrides the category colour. */ color?: string };
 
 /**
  * Concentric progress rings (outer → inner in array order). Progress is 0..1;
@@ -225,7 +224,7 @@ export function RingStack({ rings, size = 132, stroke = 14 }: { rings: RingDatum
         const r = size / 2 - stroke / 2 - i * (stroke + gap);
         const c = 2 * Math.PI * r;
         const p = Math.max(0, Math.min(ring.progress, 1));
-        const color = colors.category[ring.key];
+        const color = ring.color ?? colors.category[ring.key];
         return (
           <GroupRing key={ring.key} index={i} cx={size / 2} r={r} stroke={stroke} c={c} p={p} color={color} track={colors.fill} />
         );
@@ -420,17 +419,17 @@ export function SplitBar({ parts, height = 10 }: { parts: { value: number; color
   );
 }
 
-/** Fresh → heavy legend for the muscle map. Drawn on the night stage. */
-export const FATIGUE_LABELS = ["Fresh", "Light", "Worked", "Heavy"] as const;
+/** Traffic light legend for the muscle map. Drawn on the night stage. */
+export const FATIGUE_LABELS = ["Ready to train", "Recovering", "Needs rest"] as const;
 
 export function FatigueLegend() {
   const { colors } = useTheme();
-  const steps = [colors.stage.muscle, ...colors.fatigue];
+  const dots = [colors.fatigue[0], colors.fatigue[2], colors.fatigue[3]];
   return (
     <View style={{ flexDirection: "row", justifyContent: "center", gap: space[5], flexWrap: "wrap" }}>
-      {steps.map((c, i) => (
+      {dots.map((c, i) => (
         <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: space[2] }}>
-          <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: c, borderWidth: i === 0 ? 1 : 0, borderColor: colors.stage.outline }} />
+          <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: c }} />
           <RNText style={[type.caption, { color: colors.stage.textSecondary }]}>{FATIGUE_LABELS[i]}</RNText>
         </View>
       ))}
@@ -620,10 +619,43 @@ export function IconBadge({ category, children, size = 30 }: { category: Categor
 
 /* --------------------------------------------------------------- Tab bar */
 
-export type TabItem = { key: string; label: string; icon: (color: string, size: number) => ReactNode };
+export type TabItem = { key: string; label: string; icon: (color: string, size: number, selected: boolean) => ReactNode };
+
+/** One tab. The sliding pill is drawn by TabBar; this crossfades outline → filled icon and warms the label as the pill arrives. */
+function TabButton({ tab, selected, onPress, onSlot }: { tab: TabItem; selected: boolean; onPress: () => void; onSlot: (x: number, width: number) => void }) {
+  const { colors } = useTheme();
+  const p = useSharedValue(selected ? 1 : 0);
+  useEffect(() => {
+    p.set(withTiming(selected ? 1 : 0, { duration: motion.base, easing: Easing.out(Easing.cubic) }));
+  }, [selected, p]);
+
+  const outline = useAnimatedStyle(() => ({ opacity: 1 - p.get() }));
+  const filled = useAnimatedStyle(() => ({ opacity: p.get(), transform: [{ scale: 0.8 + 0.2 * p.get() }] }));
+  const label = useAnimatedStyle(() => ({ color: interpolateColor(p.get(), [0, 1], [colors.textSecondary, colors.onInk]) }));
+
+  return (
+    <Pressable
+      accessibilityRole="tab"
+      accessibilityState={{ selected }}
+      accessibilityLabel={tab.label}
+      onPress={onPress}
+      onLayout={(e) => onSlot(e.nativeEvent.layout.x, e.nativeEvent.layout.width)}
+      style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 2, minHeight: layout.minTouch }}
+    >
+      <View style={{ width: iconSize.md, height: iconSize.md }}>
+        <Animated.View style={[{ position: "absolute" }, outline]}>{tab.icon(colors.textSecondary, iconSize.md, false)}</Animated.View>
+        <Animated.View style={[{ position: "absolute" }, filled]}>{tab.icon(colors.onInk, iconSize.md, true)}</Animated.View>
+      </View>
+      <Animated.Text style={[type.caption, { fontFamily: fonts.semibold, fontSize: 10, lineHeight: 12 }, label]}>{tab.label}</Animated.Text>
+    </Pressable>
+  );
+}
+
+const PILL_INSET = 4;
 
 /**
  * Floating tab bar: 4 tabs plus a centered voice coach button.
+ * One solid ink capsule slides under whichever tab is selected.
  * Pass to Expo Router's `tabBar` prop; this component only draws it.
  */
 export function TabBar({
@@ -641,24 +673,37 @@ export function TabBar({
 }) {
   const { colors, elevation, scheme } = useTheme();
   const half = Math.ceil(tabs.length / 2);
-  const renderTab = (tab: TabItem) => {
-    const selected = tab.key === active;
-    const color = selected ? colors.text : colors.textSecondary;
-    return (
-      <Pressable
-        key={tab.key}
-        accessibilityRole="tab"
-        accessibilityState={{ selected }}
-        accessibilityLabel={tab.label}
-        onPress={() => onSelect(tab.key)}
-        style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 2, minHeight: layout.minTouch }}
-      >
-        {tab.icon(color, iconSize.md)}
-        <View style={{ position: "absolute", top: 2, width: 4, height: 4, borderRadius: 2, backgroundColor: selected ? colors.brand.ember : "transparent" }} />
-        <RNText style={[type.caption, { color, fontFamily: selected ? fonts.semibold : fonts.medium, fontSize: 10, lineHeight: 12 }]}>{tab.label}</RNText>
-      </Pressable>
-    );
-  };
+  const [slots, setSlots] = useState<Record<string, { x: number; width: number }>>({});
+  const x = useSharedValue(0);
+  const w = useSharedValue(0);
+  const shown = useSharedValue(0);
+  const slot = slots[active];
+
+  useEffect(() => {
+    if (!slot) return;
+    const nextX = slot.x + PILL_INSET;
+    const nextW = slot.width - PILL_INSET * 2;
+    if (!shown.get()) {
+      // First layout: place the pill without sliding in from the corner.
+      x.set(nextX);
+      w.set(nextW);
+      shown.set(1);
+    } else {
+      x.set(withSpring(nextX, motion.spring));
+      w.set(withSpring(nextW, motion.spring));
+    }
+  }, [slot, x, w, shown]);
+
+  const pill = useAnimatedStyle(() => ({ opacity: shown.get(), width: w.get(), transform: [{ translateX: x.get() }] }));
+  const renderTab = (tab: TabItem) => (
+    <TabButton
+      key={tab.key}
+      tab={tab}
+      selected={tab.key === active}
+      onPress={() => onSelect(tab.key)}
+      onSlot={(sx, width) => setSlots((s) => (s[tab.key]?.x === sx && s[tab.key]?.width === width ? s : { ...s, [tab.key]: { x: sx, width } }))}
+    />
+  );
   return (
     <View style={{ paddingHorizontal: space[5], paddingBottom: Math.max(bottomInset, space[3]) }}>
       <View
@@ -674,6 +719,7 @@ export function TabBar({
           elevation.floating,
         ]}
       >
+        <Animated.View pointerEvents="none" style={[{ position: "absolute", left: 0, top: 8, height: 48, borderRadius: radius.pill, backgroundColor: colors.ink }, pill]} />
         {tabs.slice(0, half).map(renderTab)}
         <VoiceButton onPress={onVoice} />
         {tabs.slice(half).map(renderTab)}
@@ -849,13 +895,13 @@ export function Avatar({ name, size = 36, onPress }: { name: string; size?: numb
         width: size,
         height: size,
         borderRadius: size / 2,
-        backgroundColor: colors.brand.ember,
+        backgroundColor: colors.ink,
         alignItems: "center",
         justifyContent: "center",
         transform: [{ scale: pressed ? motion.pressScale : 1 }],
       })}
     >
-      <RNText style={{ fontFamily: fonts.displayHeavy, fontSize: size * 0.44, color: "#FFFFFF" }}>
+      <RNText style={{ fontFamily: fonts.displayHeavy, fontSize: size * 0.44, color: colors.onInk }}>
         {(name.trim()[0] ?? "F").toUpperCase()}
       </RNText>
     </Pressable>

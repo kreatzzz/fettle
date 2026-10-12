@@ -32,7 +32,7 @@ export default function MuscleDetail() {
 
   const info = MUSCLES[muscle];
   const state = load[muscle];
-  const levelColor = state.level === 0 ? colors.stage.skin : colors.fatigue[state.level - 1];
+  const levelColor = colors.fatigue[state.level];
   const side = info.views.length === 2 ? 'both' : info.views[0];
   const train = exercisesFor(muscle, place?.equipment ?? []);
   const dayLabels = daily.map((_, i) => (i % 2 === 1 ? '' : new Date(now - (13 - i) * 86_400_000).toLocaleDateString(undefined, { day: 'numeric' })));
@@ -59,7 +59,7 @@ export default function MuscleDetail() {
               <RNText style={{ fontFamily: fonts.semibold, fontSize: 13, color: colors.stage.text }}>{LEVEL_LABELS[state.level]}</RNText>
             </View>
             <RNText style={{ fontFamily: fonts.medium, fontSize: 13, color: colors.stage.textSecondary }}>
-              {state.recoveredInHours ? `Fresh again in ~${formatHours(state.recoveredInHours)}` : 'Ready to train'}
+              {state.recoveredInHours ? `Ready to train in ~${formatHours(state.recoveredInHours)}` : 'Ready to train'}
             </RNText>
           </View>
         </View>

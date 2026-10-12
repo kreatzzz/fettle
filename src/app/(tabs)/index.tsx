@@ -2,10 +2,9 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { Pressable, View } from 'react-native';
 
-import { Avatar, Button, Card, RingLegend, RingStack, Screen, Text, WeekTiles, space, useTheme, type RingDatum } from '@/design';
+import { Avatar, Button, Card, RingStack, Screen, Text, WeekChart, space, useTheme, type RingDatum } from '@/design';
 import { EXERCISE_BY_ID } from '@/domain/exercises';
 import { MUSCLES, type MuscleId } from '@/domain/muscles';
-import { BodyCard } from '@/features/body/BodyCard';
 import { greeting, useDraft, useNutrition, useTraining, useWeekTiles } from '@/lib/derive';
 import { useActivePlace, useActiveSession, useApp } from '@/store/app-store';
 
@@ -30,6 +29,8 @@ export default function TodayScreen() {
     { key: 'nutrition', label: 'Calories', progress: totals.kcal / profile.kcalTarget },
     { key: 'body', label: 'Protein', progress: totals.protein / profile.proteinTarget },
   ];
+  const ringValues = [`${thisWeek}/${weekly}`, `${totals.kcal.toLocaleString()}`, `${totals.protein} g`];
+  const ringColors = [colors.category.training, colors.category.nutrition, colors.category.body];
   const targets = draft ? [...new Set(draft.items.flatMap((it) => EXERCISE_BY_ID.get(it.exerciseId)?.primary ?? []))].slice(0, 4) : [];
 
   const start = () => {
@@ -41,28 +42,31 @@ export default function TodayScreen() {
     <Screen
       title={`${greeting()}, ${profile.name}`}
       subtitle={date}
-      right={<Avatar name={profile.name} onPress={() => router.push('/profile')} />}
+      right={<Avatar name={profile.name} size={32} onPress={() => router.push('/profile')} />}
     >
-      <Card>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space[7] }}>
-          <RingStack rings={rings} size={136} />
-          <RingLegend
-            rings={rings}
-            values={[`${thisWeek}/${weekly}`, `${totals.kcal.toLocaleString()} kcal`, `${totals.protein} g`]}
-          />
+      {/* The day's rings, unboxed. Labels take their ring's colour instead of a dot; the workouts ring is the one orange accent. */}
+      <View style={{ alignItems: 'center', gap: space[5], paddingVertical: space[2] }}>
+        <RingStack rings={rings} size={184} stroke={15} />
+        <View style={{ flexDirection: 'row', alignSelf: 'stretch' }}>
+          {rings.map((ring, i) => (
+            <View key={ring.key} style={{ flex: 1, alignItems: 'center' }}>
+              <Text variant="headline" style={{ fontVariant: ['tabular-nums'] }}>
+                {ringValues[i]}
+              </Text>
+              <Text variant="caption" style={{ color: ringColors[i] }}>
+                {ring.label}
+              </Text>
+            </View>
+          ))}
         </View>
-      </Card>
+      </View>
 
-      <Card
-        title={active ? 'In progress' : 'Up next'}
-        category="training"
-        accessory={<Text variant="footnote" tone="secondary">{place?.name}</Text>}
-      >
+      <Card title={active ? 'In progress' : 'Up next'} accessory={<Text variant="footnote" tone="tertiary">{place?.name}</Text>}>
         {draft && draft.items.length ? (
-          <View style={{ gap: space[5] }}>
-            <View style={{ gap: space[2] }}>
-              <Text variant="title2">{active ? active.name : draft.name}</Text>
-              <Text variant="subhead" tone="secondary">
+          <View style={{ gap: space[4] }}>
+            <View style={{ gap: 2 }}>
+              <Text variant="title3">{active ? active.name : draft.name}</Text>
+              <Text variant="footnote" tone="secondary">
                 {active
                   ? `${active.exercises.reduce((n, e) => n + e.sets.filter((s) => s.done).length, 0)} sets done`
                   : `${draft.items.length} exercises · ~${draft.items.length * 8} min`}
@@ -77,13 +81,14 @@ export default function TodayScreen() {
             ) : null}
             <View style={{ flexDirection: 'row', gap: space[3] }}>
               <Button
+                size="sm"
                 variant="brand"
                 label={active ? 'Resume' : 'Start workout'}
                 onPress={start}
                 style={{ flex: 1 }}
-                icon={<Ionicons name="play" size={16} color="#FFFFFF" />}
+                icon={<Ionicons name="play" size={14} color="#FFFFFF" />}
               />
-              <Button variant="secondary" label="Plan" onPress={() => router.navigate('/workouts')} />
+              <Button size="sm" variant="secondary" label="Plan" onPress={() => router.navigate('/workouts')} />
             </View>
           </View>
         ) : (
@@ -93,47 +98,40 @@ export default function TodayScreen() {
         )}
       </Card>
 
-      <BodyCard />
-
-      <Card
-        title="This week"
-        category="training"
-        accessory={<Text variant="footnote" tone="secondary">{streak ? `${streak}-day streak` : 'No streak yet'}</Text>}
-      >
-        <WeekTiles days={week} />
+      <Card title="This week" accessory={<Text variant="footnote" tone="tertiary">{streak ? `${streak}-day streak` : ''}</Text>}>
+        <WeekChart days={week} goal={weekly} />
       </Card>
 
       <Card
         title="Meals"
-        category="nutrition"
         accessory={
           <Pressable accessibilityRole="link" accessibilityLabel="Open meals" onPress={() => router.navigate('/meals')} hitSlop={10}>
-            <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+            <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
           </Pressable>
         }
       >
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-          <View>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[2] }}>
-              <Text variant="metric">{Math.max(0, profile.kcalTarget - totals.kcal).toLocaleString()}</Text>
-              <Text variant="unit" tone="secondary">
-                kcal left
-              </Text>
-            </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space[2] }}>
+            <Text variant="title2" style={{ fontVariant: ['tabular-nums'] }}>
+              {Math.max(0, profile.kcalTarget - totals.kcal).toLocaleString()}
+            </Text>
+            <Text variant="footnote" tone="secondary">
+              kcal left
+            </Text>
           </View>
-          <Button size="sm" variant="secondary" label="Log meal" onPress={() => router.push('/log-meal')} icon={<Ionicons name="add" size={16} color={colors.text} />} />
+          <Button size="sm" variant="secondary" label="Log meal" onPress={() => router.push('/log-meal')} icon={<Ionicons name="add" size={14} color={colors.text} />} />
         </View>
       </Card>
     </Screen>
   );
 }
 
+/** Which muscles today's session hits: quiet neutral tags. */
 function TargetTag({ muscle }: { muscle: MuscleId }) {
-  const { colors, scheme } = useTheme();
-  const dark = scheme === 'dark';
+  const { colors } = useTheme();
   return (
-    <View style={{ paddingHorizontal: space[3], paddingVertical: space[2], borderRadius: 999, backgroundColor: dark ? `${colors.brand.ember}2E` : colors.brand.emberSoft }}>
-      <Text variant="caption" style={{ color: dark ? colors.category.training : colors.brand.emberDeep }}>
+    <View style={{ paddingHorizontal: space[3], paddingVertical: 4, borderRadius: 999, backgroundColor: colors.fill }}>
+      <Text variant="caption" tone="secondary">
         {MUSCLES[muscle].label}
       </Text>
     </View>
