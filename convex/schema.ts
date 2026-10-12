@@ -1,5 +1,5 @@
 // The app is local-first. Convex keeps one backup document per device (no accounts),
-// plus a tiny log used to rate-limit the AI coach.
+// plus tiny logs used to rate-limit the AI coach and speech-to-text.
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
@@ -13,4 +13,6 @@ export default defineSchema({
   coachCalls: defineTable({
     deviceId: v.string(),
   }).index("by_device", ["deviceId"]),
+
+  sttCalls: defineTable({ deviceId: v.string() }).index("by_device", ["deviceId"]),
 });

@@ -70,6 +70,13 @@ The endpoint is public and unauthenticated, so treat every caller as hostile. Ke
 
 When editing the prompt or validation, re-test with injection attempts (reveal prompt, role change, fake closing tag, off-topic request, out-of-range values) before shipping.
 
+## Speech-to-text (`convex/stt.ts`, `src/lib/voice.ts`)
+
+- The coach records a short clip (`src/lib/useRecorder.ts` on native with expo-audio, `useRecorder.web.ts` on web with MediaRecorder), stops on silence, and sends it to the Convex action `stt.transcribe`, which calls Groq's Whisper (`whisper-large-v3-turbo`).
+- Convex env: `STT_API_KEY` (required, set with `npx convex env set`), optional `STT_BASE_URL`, `STT_MODEL`.
+- **Fallback:** if the action errors, is rate-limited (429) or isn't configured, `useVoice` switches to the on-device recognizer (expo-speech-recognition / Web Speech API) for 2 minutes. Keep that path working.
+- Same hardening rules as the coach: the endpoint is public, so keep the size cap (about 1 MB), the mime allow-list, the per-device and global rate limits (Groq free tier is about 20 requests/minute), and never log audio, transcripts or keys.
+
 ## Deploying
 
 - **Web (Vercel):** static export. `vercel.json` runs `npm run build:web` and serves `dist/` with an SPA rewrite. Set `EXPO_PUBLIC_CONVEX_URL` in the Vercel project. Vercel only serves static files; all backend work is Convex.

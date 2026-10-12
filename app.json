@@ -51,7 +51,13 @@
           "speechRecognitionPermission": "Fettle turns what you say to the coach into text to update your plan."
         }
       ],
-      "./plugins/android-release-signing"
+      "./plugins/android-release-signing",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Fettle listens when you tap the coach button so you can change your workout by voice."
+        }
+      ]
     ],
     "scheme": "mosaic",
     "experiments": {

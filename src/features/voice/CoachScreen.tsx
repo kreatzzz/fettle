@@ -53,26 +53,28 @@ export function CoachScreen() {
   // Without speech (Expo Go), open straight to the keyboard.
   const [typing, setTyping] = useState(() => voice.state === 'unavailable');
   const listening = voice.state === 'listening';
+  const transcribing = voice.state === 'processing';
   const canListen = voice.state === 'idle' || listening;
 
   // Siri-style: start listening as soon as the overlay opens.
   useEffect(() => {
     if (voice.state === 'idle') voice.start();
-    return () => voice.stop();
     // Run once on open.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const energy = listening ? 0.55 + voice.level * 0.45 : thinking ? 0.45 : reply ? 0.3 : 0.15;
+  const energy = listening ? 0.55 + voice.level * 0.45 : thinking || transcribing ? 0.45 : reply ? 0.3 : 0.15;
   const hint = listening
     ? 'Listening…'
-    : thinking
-      ? 'Thinking…'
-      : voice.state === 'unavailable'
-      ? 'Voice needs the Fettle app build. Type instead.'
-      : voice.state === 'denied'
-        ? 'Microphone is off. Allow it in Settings, or type.'
-        : 'Tap the orb and talk';
+    : transcribing
+      ? 'Transcribing…'
+      : thinking
+        ? 'Thinking…'
+        : voice.state === 'unavailable'
+          ? voice.notice || 'Voice isn’t available here. Type instead.'
+          : voice.state === 'denied'
+            ? 'Microphone is off. Allow it in Settings, or type.'
+            : voice.notice || 'Tap the orb and talk';
   const shown = listening ? voice.partial : heard;
 
   // Start the new workout (or resume the one in progress) and leave the coach.

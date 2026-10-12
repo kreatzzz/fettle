@@ -9,6 +9,7 @@
  */
 
 import type * as coach from "../coach.js";
+import type * as stt from "../stt.js";
 import type * as userData from "../userData.js";
 
 import type {
@@ -19,6 +20,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   coach: typeof coach;
+  stt: typeof stt;
   userData: typeof userData;
 }>;
 
