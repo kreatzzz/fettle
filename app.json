@@ -1,0 +1,62 @@
+{
+  "expo": {
+    "name": "Fettle",
+    "slug": "mosaic",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fettle.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#F4F2EE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.fettle.app",
+      "permissions": [
+        "REQUEST_INSTALL_PACKAGES"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "name": "Fettle",
+      "backgroundColor": "#0E0D10",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0E0D10",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 120,
+          "dark": {
+            "backgroundColor": "#0E0D10",
+            "image": "./assets/splash-icon.png"
+          }
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Fettle listens when you tap the coach button so you can change your workout by voice.",
+          "speechRecognitionPermission": "Fettle turns what you say to the coach into text to update your plan."
+        }
+      ],
+      "./plugins/android-release-signing"
+    ],
+    "scheme": "mosaic",
+    "experiments": {
+      "typedRoutes": true
+    },
+    "backgroundColor": "#0E0D10"
+  }
+}
